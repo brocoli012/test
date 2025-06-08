@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Line, Bar, Pie } from 'react-chartjs-2';
 import { analyzeSheet } from '../utils/analyzeSheet';
 import { generateReport } from '../utils/generateReport';
