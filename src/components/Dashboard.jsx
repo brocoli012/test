@@ -1,11 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import {
-  ChartBarIcon,
-  UsersIcon,
-  CurrencyDollarIcon,
-  ShoppingCartIcon,
-} from '@heroicons/react/24/outline';
-import { Line, Bar, Pie, Scatter } from 'react-chartjs-2';
+import React, { useEffect, useState, useMemo } from 'react';
+import { Line, Bar, Pie } from 'react-chartjs-2';
 import { analyzeSheet } from '../utils/analyzeSheet';
 import { generateReport } from '../utils/generateReport';
 import {
@@ -38,131 +32,6 @@ function extractSheetId(url) {
   const match = url.match(/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
   return match ? match[1] : null;
 }
-
-function getSummaryText(analysis, rowCount) {
-  if (!analysis.length) return '';
-  let summary = `총 ${rowCount}개의 데이터가 있습니다. `;
-  const numericCols = analysis.filter(col => col.isNumeric);
-  const categoryCols = analysis.filter(col => !col.isNumeric && col.uniqueCount < rowCount / 2);
-  if (numericCols.length) {
-    summary += `숫자형 컬럼은 ${numericCols.map(c => c.header).join(', ')}이며, `;
-    summary += numericCols.map(c => `${c.header}의 평균은 ${Math.round(c.stats.avg).toLocaleString()}입니다`).join(', ') + '. ';
-  }
-  if (categoryCols.length) {
-    summary += `범주형 컬럼은 ${categoryCols.map(c => c.header).join(', ')} 등이 있습니다. `;
-  }
-  summary += '아래에서 주요 지표, 차트, 표를 확인할 수 있습니다.';
-  return summary;
-}
-
-const stats = [
-  {
-    name: '총 매출',
-    value: '₩45,231,000',
-    icon: CurrencyDollarIcon,
-    change: '+20.1%',
-    changeType: 'positive',
-  },
-  {
-    name: '신규 고객',
-    value: '2,338',
-    icon: UsersIcon,
-    change: '+15.3%',
-    changeType: 'positive',
-  },
-  {
-    name: '주문 수',
-    value: '1,234',
-    icon: ShoppingCartIcon,
-    change: '+12.5%',
-    changeType: 'positive',
-  },
-  {
-    name: '전환율',
-    value: '3.2%',
-    icon: ChartBarIcon,
-    change: '-2.3%',
-    changeType: 'negative',
-  },
-];
-
-const recentActivities = [
-  {
-    id: 1,
-    orderNumber: 'ORD-001',
-    customerName: '김철수',
-    amount: 150000,
-    status: '완료',
-    date: '2024-02-20',
-  },
-  {
-    id: 2,
-    orderNumber: 'ORD-002',
-    customerName: '이영희',
-    amount: 230000,
-    status: '처리중',
-    date: '2024-02-20',
-  },
-  {
-    id: 3,
-    orderNumber: 'ORD-003',
-    customerName: '박지민',
-    amount: 89000,
-    status: '완료',
-    date: '2024-02-19',
-  },
-  {
-    id: 4,
-    orderNumber: 'ORD-004',
-    customerName: '최수진',
-    amount: 320000,
-    status: '완료',
-    date: '2024-02-19',
-  },
-  {
-    id: 5,
-    orderNumber: 'ORD-005',
-    customerName: '정민수',
-    amount: 175000,
-    status: '처리중',
-    date: '2024-02-18',
-  },
-];
-
-const salesData = {
-  labels: ['1월', '2월', '3월', '4월', '5월', '6월'],
-  datasets: [
-    {
-      label: '매출',
-      data: [30000000, 35000000, 32000000, 38000000, 42000000, 45231000],
-      borderColor: 'rgb(75, 192, 192)',
-      tension: 0.1,
-    },
-  ],
-};
-
-const chartOptions = {
-  responsive: true,
-  plugins: {
-    legend: {
-      position: 'top',
-    },
-    title: {
-      display: true,
-      text: '월별 매출 추이',
-    },
-  },
-  scales: {
-    y: {
-      beginAtZero: true,
-      ticks: {
-        callback: function(value) {
-          return '₩' + value.toLocaleString();
-        }
-      }
-    }
-  }
-};
 
 const Accordion = ({ title, children, defaultOpen = false }) => {
   const [open, setOpen] = useState(defaultOpen);
@@ -236,19 +105,16 @@ const Dashboard = ({ sheetUrl }) => {
       });
   }, [sheetUrl]);
 
-  const headers = sheetData[0] || [];
-  const rows = sheetData.slice(1);
-
   useEffect(() => {
-    if (headers.length && rows.length) {
-      const a = analyzeSheet(headers, rows);
+    if (sheetData.length && sheetData[0].length) {
+      const a = analyzeSheet(sheetData[0], sheetData.slice(1));
       setAnalysis(a);
-      setReport(generateReport(a, rows));
+      setReport(generateReport(a, sheetData.slice(1)));
     } else {
       setAnalysis([]);
       setReport({ sections: [] });
     }
-  }, [headers, rows]);
+  }, [sheetData]);
 
   // 목차 생성
   const toc = report.sections.map(s => ({ id: s.id, title: s.title }));
@@ -281,10 +147,10 @@ const Dashboard = ({ sheetUrl }) => {
           <div key={idx} className="max-w-3xl mx-auto">
             <Line
               data={{
-                labels: rows.map(r => r[xIdx]),
+                labels: sheetData.map(r => r[xIdx]),
                 datasets: [{
                   label: yCol,
-                  data: rows.map(r => Number(r[yIdx])),
+                  data: sheetData.map(r => Number(r[yIdx])),
                   borderColor: 'rgb(75, 192, 192)',
                   backgroundColor: 'rgba(75,192,192,0.2)',
                   tension: 0.1,
@@ -298,7 +164,6 @@ const Dashboard = ({ sheetUrl }) => {
       }
       if (Array.isArray(item) && item[0] === 'outlier-bar') {
         // 이상치 bar+scatter를 하나의 Bar 차트로 합침
-        const header = item[1];
         let all = item[2].map(v => Number(v)).filter(v => !isNaN(v));
         let outliers = item[3].map(v => Number(v)).filter(v => !isNaN(v));
         const labels = all.map((_, i) => i + 1);
