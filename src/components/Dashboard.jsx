@@ -13,6 +13,7 @@ import {
   Tooltip,
   Legend,
   ArcElement,
+  ScatterController,
 } from 'chart.js';
 import Card from './Card';
 
@@ -25,7 +26,8 @@ ChartJS.register(
   ArcElement,
   Title,
   Tooltip,
-  Legend
+  Legend,
+  ScatterController
 );
 
 function extractSheetId(url) {
